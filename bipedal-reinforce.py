@@ -67,6 +67,7 @@ hidden = fully_connected(
     biases_initializer=hb_init,
     scope='hidden')
 
+# mu = phi(s, a)^T dot theta
 mus = fully_connected(
     inputs=hidden,
     num_outputs=output_units,
@@ -104,8 +105,10 @@ MAX_STEPS = env.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps')
 
 track_returns = []
 for ep in range(16384):
+    # reset the environment
     obs = env.reset()
 
+    # generating all the states and actions and rewards
     G = 0
     ep_states = []
     ep_actions = []
@@ -116,22 +119,29 @@ for ep in range(16384):
     while not done:
         ep_states.append(obs)
         env.render()
+        # pi_sample is the list of randomly generated probablity
+        # then we use pi_sample to generate the list of actions
         action = sess.run([pi_sample], feed_dict={x:[obs]})[0][0]
         ep_actions.append(action)
         obs, reward, done, info = env.step(action)
         ep_rewards.append(reward * I)
-        G += reward * I
+        G += reward * I # G is the 
         I *= gamma
 
         t += 1
         if t >= MAX_STEPS:
             break
+    # done generating
 
     if not args.load_model:
+        # G_t = total - culmulative up to time t
+        # set of all G_t's
         returns = np.array([G - np.cumsum(ep_rewards[:-1])]).T
         index = ep % MEMORY
         
-        
+        # ep_states contains all the state S_0 to S_T-1
+        # ep_actions contains all the actions from A_0 to A_T-1
+        # returns (ie reward) contains all the G_t's form t=0 to t=T
         _ = sess.run([train_op],
                     feed_dict={x:np.array(ep_states),
                                 y:np.array(ep_actions),
