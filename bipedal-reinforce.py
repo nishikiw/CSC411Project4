@@ -29,9 +29,11 @@ alpha = 0.01
 TINY = 1e-8
 gamma = 0.98
 
+# xavier initialization is another way to init weight randomly, but better
 weights_init = xavier_initializer(uniform=False)
 relu_init = tf.constant_initializer(0.1)
 
+# if we have the w's and b's saved, load it. Otherwise initialize it
 if args.load_model:
     model = np.load(args.load_model)
     hw_init = tf.constant_initializer(model['hidden/weights'])
@@ -58,6 +60,7 @@ NUM_INPUT_FEATURES = 24
 x = tf.placeholder(tf.float32, shape=(None, NUM_INPUT_FEATURES), name='x')
 y = tf.placeholder(tf.float32, shape=(None, output_units), name='y')
 
+# 1 layer of hidden unit. Activation is ReLU
 hidden = fully_connected(
     inputs=x,
     num_outputs=hidden_size,
@@ -67,6 +70,7 @@ hidden = fully_connected(
     biases_initializer=hb_init,
     scope='hidden')
 
+# use last layer of neural network as phi(a, s) (the feature)
 # mu = phi(s, a)^T dot theta
 mus = fully_connected(
     inputs=hidden,
@@ -77,6 +81,7 @@ mus = fully_connected(
     biases_initializer=mb_init,
     scope='mus')
 
+# softplus is similar to ReLU. Activation function is g(x) = ln(1+e^x)
 sigmas = tf.clip_by_value(fully_connected(
     inputs=hidden,
     num_outputs=output_units,
@@ -89,10 +94,14 @@ sigmas = tf.clip_by_value(fully_connected(
 
 all_vars = tf.global_variables()
 
+# use a Gaussian dist on pi because action is continuous
 pi = tf.contrib.distributions.Normal(mus, sigmas, name='pi')
 pi_sample = tf.tanh(pi.sample(), name='pi_sample')
+
+# log probability of y given mu and sigma
 log_pi = pi.log_prob(y, name='log_pi')
 
+# Returns is a 1 x (T-1) array for float (rewards)
 Returns = tf.placeholder(tf.float32, name='Returns')
 optimizer = tf.train.GradientDescentOptimizer(alpha)
 train_op = optimizer.minimize(-1.0 * Returns * log_pi)
@@ -125,7 +134,7 @@ for ep in range(16384):
         ep_actions.append(action)
         obs, reward, done, info = env.step(action)
         ep_rewards.append(reward * I)
-        G += reward * I # G is the 
+        G += reward * I # G is the total discounted reward
         I *= gamma
 
         t += 1
