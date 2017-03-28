@@ -144,7 +144,7 @@ for ep in range(16384):
 
     if not args.load_model:
         # G_t = total - culmulative up to time t
-        # set of all G_t's
+        # set of all gamma^t times G_t's
         returns = np.array([G - np.cumsum(ep_rewards[:-1])]).T
         index = ep % MEMORY
         
