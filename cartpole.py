@@ -9,6 +9,9 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 import numpy as np
+import tensorflow as tf
+from tensorflow.contrib.layers import *
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -143,3 +146,131 @@ class CartPoleEnv(gym.Env):
         self.poletrans.set_rotation(-x[2])
 
         return self.viewer.render(return_rgb_array = mode=='rgb_array')
+        
+
+""" This is where part 2 coding starts """
+env = gym.make('CartPole-v0')
+cp = CartPoleEnv()
+
+RNG_SEED=1
+tf.set_random_seed(RNG_SEED)
+cp._seed(RNG_SEED)
+np.random.seed(RNG_SEED)
+
+alpha = 0.0001
+gamma = 0.99
+
+# xavier initialization is another way to init weight randomly, but better
+weights_init = xavier_initializer(uniform=False)
+relu_init = tf.constant_initializer(0.1)
+
+w_init = weights_init
+b_init = relu_init
+
+try:
+    output_units = env.action_space.shape[0]
+except AttributeError:
+    output_units = env.action_space.n
+
+input_shape = env.observation_space.shape[0]
+x = tf.placeholder(tf.float32, shape=(None, input_shape), name='x')
+y = tf.placeholder(tf.int32, name='y')
+
+# 1 layer oin neural network. Activation is ReLU
+output = fully_connected(
+    inputs=x,
+    num_outputs=output_units,
+    activation_fn=tf.nn.relu,
+    weights_initializer=w_init,
+    weights_regularizer=None,
+    biases_initializer=b_init,
+    scope='output')
+
+# adde a softmax
+soft_max_full = tf.nn.softmax(output)
+# grab the first col of softmax
+soft_max = tf.reshape(soft_max_full[:,0], [tf.shape(soft_max_full)[0], 1])
+
+# use Bernoulli distribution
+pi = tf.contrib.distributions.Bernoulli(soft_max, name='pi')
+pi_sample = pi.sample()
+
+# log probability of y
+log_pi = pi.log_prob(y, name='log_pi')
+# still not too sure what to do with act_pi
+act_pi = tf.matmul(tf.expand_dims(log_pi, 1), tf.one_hot(y, 2, axis=1)) 
+
+# Returns is a 1 x (T-1) array for float (rewards)
+Returns = tf.placeholder(tf.float32, name='Returns')
+optimizer = tf.train.GradientDescentOptimizer(alpha)
+cost = -1.0 * Returns * log_pi
+train_op = optimizer.minimize(cost)
+
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+
+MEMORY=25
+MAX_STEPS = env.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps')
+
+track_returns = []
+for ep in range(10001):
+    # reset the environment
+    obs = cp._reset()
+
+    # generating all the states and actions and rewards
+    G = 0
+    ep_states = []
+    ep_actions = []
+    ep_rewards = [0]
+    done = False
+    t = 0
+    I = 1
+    
+    while not done:
+        ep_states.append(obs)
+        #cp._render()
+        
+        # pi_sample is the list of randomly generated probablity
+        # then we use pi_sample to generate the list of actions
+        action = sess.run(pi_sample, feed_dict={x:[obs]})[0][0]
+        ep_actions.append(action)
+        obs, reward, done, info = cp._step(action)
+        ep_rewards.append(reward * I)
+        G += reward * I # G is the total discounted reward
+        I *= gamma
+
+        t += 1
+        if t >= MAX_STEPS:
+            break
+    # done generating
+
+    # G_t = total - culmulative up to time t
+    # set of all G_t's
+    returns = np.array([G - np.cumsum(ep_rewards[:-1])]).T
+    
+    # ep_states contains all the state S_0 to S_T-1
+    # ep_actions contains all the actions from A_0 to A_T-1
+    # returns (ie reward) contains all the G_t's form t=0 to t=T
+    _ = sess.run([train_op],
+                feed_dict={x:np.array(ep_states),
+                            y:np.array(ep_actions),
+                            Returns:returns })
+
+    track_returns.append(G)
+    track_returns = track_returns[-MEMORY:]
+    mean_return = np.mean(track_returns)
+    
+    
+    if (ep % 500 == 0):
+        print("Episode {} finished after {} steps with return {}".format(ep, t, G))
+        #print("Mean return over the last {} episodes is {}".format(MEMORY, mean_return))
+        print("Cost: ", sess.run(tf.reduce_sum(cost), feed_dict={x:np.array(ep_states),y:np.array(ep_actions), Returns:returns }))
+    
+    
+        with tf.variable_scope("output", reuse=True):
+            print("incoming weights for the output", sess.run(tf.get_variable("weights"))[0,:])
+        print()
+
+"""
+sess.close()
+"""
