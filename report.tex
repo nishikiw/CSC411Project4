@@ -109,7 +109,7 @@ else:
     sb_init = relu_init
 \end{lstlisting}
 
-Once everything is initialized, we will start training. For each iteration, we will reset the environment (line 2), then generate the states, actions, and rewards from time 0 to time $T$. When generating the actions, we will randomly sample a $\pi_{sample}$ from the $\pi$ normal distribution (line 16). Then based on the $\pi_{sample}$, we will generate the corresponding action, and using the action, the new state, reward would be generated. We will keep track of all the states, actions, and rewards in 3 lists ($ep\_states, ep\_actions, $ and $ep\_rewards$). We will also keep track of the total discounted rewards using the variable $G$ (line 20). Then to obtain $G_t$, the discounted reward starting from time t, the program calls a culmulation sum function on the $ep_rewards$ then subtract it from $G$ (line 30). Thus $returns$ would be storing the total discouned rewards for each time from time 0 to $T-1$.
+Once everything is initialized, we will start training. For each iteration, we will reset the environment (line 2), then generate the states, actions, and rewards from time 0 to time $T$. When generating the actions, we will randomly sample from the $\pi$ normal distribution (line 16). Then based on the $pi.sample()$, we will generate the corresponding action $pi_sample$, and using the action, the new state, reward would be generated. We will keep track of all the states, actions, and rewards in 3 lists ($ep\_states, ep\_actions, $ and $ep\_rewards$). We will also keep track of the total discounted rewards using the variable $G$ (line 20). Then to obtain $G_t$, the discounted reward starting from time t, the program calls a culmulation sum function on the $ep_rewards$ then subtract it from $G$ (line 30). Thus $returns$ would be storing the total discouned rewards for each time from time 0 to $T-1$.
 
 \begin{lstlisting}
 for ep in range(16384):
@@ -125,8 +125,8 @@ for ep in range(16384):
     while not done:
         ep_states.append(obs)
         env.render()
-        # pi_sample is the list of randomly generated probablity
-        # then we use pi_sample to generate the list of actions
+        # pi.sample() is the list of randomly generated probablity
+        # pi_sample becomes the action
         action = sess.run([pi_sample], feed_dict={x:[obs]})[0][0]
         ep_actions.append(action)
         obs, reward, done, info = env.step(action)

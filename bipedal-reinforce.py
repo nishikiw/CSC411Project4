@@ -128,8 +128,7 @@ for ep in range(16384):
     while not done:
         ep_states.append(obs)
         env.render()
-        # pi_sample is the list of randomly generated probablity
-        # then we use pi_sample to generate the list of actions
+        # pi_sample is the action given randomly generated probablity
         action = sess.run([pi_sample], feed_dict={x:[obs]})[0][0]
         ep_actions.append(action)
         obs, reward, done, info = env.step(action)
