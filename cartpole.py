@@ -12,6 +12,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.layers import *
 import sys
+from pylab import *
 
 logger = logging.getLogger(__name__)
 
@@ -157,15 +158,18 @@ tf.set_random_seed(RNG_SEED)
 cp._seed(RNG_SEED)
 np.random.seed(RNG_SEED)
 
-alpha = 0.0001
+alpha = 0.00001
 gamma = 0.99
+hidden = 20
 
 # xavier initialization is another way to init weight randomly, but better
-weights_init = xavier_initializer(uniform=False)
-relu_init = tf.constant_initializer(0.1)
+#weights_init = xavier_initializer(uniform=False)
+#relu_init = tf.constant_initializer(0.1)
 
-w_init = weights_init
-b_init = relu_init
+#w_init = weights_init
+#b_init = relu_init
+
+
 
 try:
     output_units = env.action_space.shape[0]
@@ -176,32 +180,50 @@ input_shape = env.observation_space.shape[0]
 x = tf.placeholder(tf.float32, shape=(None, input_shape), name='x')
 y = tf.placeholder(tf.int32, shape=(None, 1), name='y')
 
+#w0 = tf.Variable(np.random.normal(0.0, 0.1, (input_shape, output_units)).astype(float32))
+#b0 = tf.Variable(np.random.normal(0.0, 0.1, (output_units)).astype(float32))
+
+w0 = tf.get_variable('w0', (input_shape, hidden))
+b0 = tf.get_variable('b0', (hidden))
+w1 = tf.get_variable('w1', (hidden, output_units))
+b1 = tf.get_variable('b1', (output_units))
+
 # 1 layer oin neural network. Activation is ReLU
-output = fully_connected(
-    inputs=x,
-    num_outputs=output_units,
-    activation_fn=tf.nn.relu,
-    weights_initializer=w_init,
-    weights_regularizer=None,
-    biases_initializer=b_init,
-    scope='output')
+
+layer1 = tf.nn.sigmoid(tf.matmul(x, w0)+b0)
+output = tf.nn.tanh(tf.matmul(layer1, w1) + b1)
+# output = fully_connected(
+#     inputs=x,
+#     num_outputs=output_units,
+#     activation_fn=tf.nn.relu,
+#     weights_initializer=w_init,
+#     weights_regularizer=None,
+#     biases_initializer=b_init,
+#     scope='output')
 
 # adde a softmax
 soft_max_full = tf.nn.softmax(output)
 # grab the first col of softmax
-soft_max = tf.reshape(soft_max_full[:,0], [tf.shape(soft_max_full)[0], 1])
+#soft_max = tf.reshape(soft_max_full[:,0], [tf.shape(soft_max_full)[0], 1])
+
+all_vars = tf.global_variables()
 
 # use Bernoulli distribution
-pi = tf.contrib.distributions.Bernoulli(soft_max, name='pi')
-pi_sample = pi.sample()
+#pi = tf.contrib.distributions.Bernoulli(soft_max, name='pi')
+#pi_sample = pi.sample()
+
+pi_sample = tf.argmax(soft_max_full, axis=1)
+
+log_pi = tf.log(soft_max_full)
+act_pi = tf.matmul(tf.expand_dims(log_pi, 1), tf.one_hot(y, 2, axis=1))
 
 # log probability of y
-log_pi = pi.log_prob(y, name='log_pi')
+#log_pi = pi.log_prob(y, name='log_pi')
 
 # Returns is a 1 x (T-1) array for float (rewards)
 Returns = tf.placeholder(tf.float32, name='Returns')
-optimizer = tf.train.GradientDescentOptimizer(alpha)
-cost = -1.0 * Returns * log_pi
+optimizer = tf.train.AdamOptimizer(alpha)
+cost = -1.0 * Returns * tf.exp(act_pi)
 train_op = optimizer.minimize(cost)
 
 sess = tf.Session()
@@ -230,7 +252,7 @@ for ep in range(10001):
         
         # pi_sample is the list of randomly generated probablity
         # then we use pi_sample to generate the list of actions
-        action = sess.run(pi_sample, feed_dict={x:[obs]})[0][0]
+        action = sess.run([pi_sample], feed_dict={x:[obs]})[0][0]
         ep_actions.append(action)
         obs, reward, done, info = cp._step(action)
         ep_rewards.append(reward * I)
@@ -262,6 +284,7 @@ for ep in range(10001):
     if (ep % 500 == 0):
         print("Episode {} finished after {} steps with return {}".format(ep, t, G))
         print("Mean return over the last {} episodes is {}".format(MEMORY, mean_return))
+        #print("gradient: ", sess.run(tf.gradients(cost, w0), feed_dict={x:np.array(ep_states),y:np.reshape(np.array(ep_actions), (len(ep_actions), 1)), Returns:returns }))
         print("Cost: ", sess.run(tf.reduce_sum(cost), feed_dict={x:np.array(ep_states),y:np.reshape(np.array(ep_actions), (len(ep_actions), 1)), Returns:returns }))
     
     
