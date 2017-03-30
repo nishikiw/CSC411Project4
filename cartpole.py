@@ -174,7 +174,7 @@ except AttributeError:
 
 input_shape = env.observation_space.shape[0]
 x = tf.placeholder(tf.float32, shape=(None, input_shape), name='x')
-y = tf.placeholder(tf.int32, name='y')
+y = tf.placeholder(tf.int32, shape=(None, 1), name='y')
 
 # 1 layer oin neural network. Activation is ReLU
 output = fully_connected(
@@ -197,8 +197,6 @@ pi_sample = pi.sample()
 
 # log probability of y
 log_pi = pi.log_prob(y, name='log_pi')
-# still not too sure what to do with act_pi
-act_pi = tf.matmul(tf.expand_dims(log_pi, 1), tf.one_hot(y, 2, axis=1)) 
 
 # Returns is a 1 x (T-1) array for float (rewards)
 Returns = tf.placeholder(tf.float32, name='Returns')
@@ -253,7 +251,7 @@ for ep in range(10001):
     # returns (ie reward) contains all the G_t's form t=0 to t=T
     _ = sess.run([train_op],
                 feed_dict={x:np.array(ep_states),
-                            y:np.array(ep_actions),
+                            y:np.reshape(np.array(ep_actions), (len(ep_actions), 1)),
                             Returns:returns })
 
     track_returns.append(G)
@@ -263,13 +261,13 @@ for ep in range(10001):
     
     if (ep % 500 == 0):
         print("Episode {} finished after {} steps with return {}".format(ep, t, G))
-        #print("Mean return over the last {} episodes is {}".format(MEMORY, mean_return))
-        print("Cost: ", sess.run(tf.reduce_sum(cost), feed_dict={x:np.array(ep_states),y:np.array(ep_actions), Returns:returns }))
+        print("Mean return over the last {} episodes is {}".format(MEMORY, mean_return))
+        print("Cost: ", sess.run(tf.reduce_sum(cost), feed_dict={x:np.array(ep_states),y:np.reshape(np.array(ep_actions), (len(ep_actions), 1)), Returns:returns }))
     
     
-        with tf.variable_scope("output", reuse=True):
-            print("incoming weights for the output", sess.run(tf.get_variable("weights"))[0,:])
-        print()
+        # with tf.variable_scope("output", reuse=True):
+        #     print("incoming weights for the output", sess.run(tf.get_variable("weights"))[0,:])
+        # print()
 
 """
 sess.close()
