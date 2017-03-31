@@ -176,8 +176,57 @@ train_op = optimizer.minimize(-1.0 * Returns * log_pi)
 \section*{Part 2}
 
 \paragraph{Question}
+Your job is to now write an implementation of REINFORCE that will run for the CartPole-v0 (source code here ) environment.
+
+In the Cart Pole task, two actions are possible – applying a force pushing left, and applying a force pushing right. Each episode stops when the pole inclides at an angle that larger than a threshold, or when the cart moves out of the frame. The at each time-step before the episode stops, the reward is 1.
+
+The policy function should have two outputs – the probability of “left” and the probability of “right.’ Implement the policy function as a softmax layer (i.e., a linear layer that is then passed through softmax.) Note that a softmax layer is simply a fully-connected layer with a softmax actication.
+
+In your report, detail all the modifications that you had to make to the handout code, one-by-one, and briefly state why and how you made the modifications. Include new code (up to a few lines per modification) that you wrote in your report.
 
 \paragraph{Answer}
+
+The modifications we made are:
+\begin{enumerate}
+\item We changed the network model.\\
+In part 1, the network has a hidden layer which computes the feature vector of $x$, and pass the feature vector to one layer that computes $\mu$, and another layer that computes $\sigma$, then use the output of $\mu$ and $\sigma$ to generate $\pi$ and use the $\pi$ to generate action.\\
+Our network for part 2 is simpler, we don't have a hidden layer. We just have a fully connected layer that takes $x$ as input, and output two output units. Then we use sigmoid as the activation function on the output to make the output in range of (0, 1), and then pass the output from activation function to softmax. The output of softmax is a size 2 vector that each element indicates the probability of an action.\\
+Therefore, we removed the setup of layers we don't need, and built our network as follows. (We also adjusted the value of $\alpha$ and $\gamma$.)
+\begin{lstlisting}
+alpha = 1e-6
+gamma = 0.99
+
+try:
+    output_units = env.action_space.shape[0]
+except AttributeError:
+    output_units = env.action_space.n
+
+input_shape = env.observation_space.shape[0]
+w = tf.get_variable("w", shape=[input_shape, output_units])
+b = tf.get_variable("b", shape=[output_units])
+x = tf.placeholder(tf.float32, shape=(None, input_shape), name='x')
+y = tf.placeholder(tf.int32, shape=(None, 1), name='y')
+
+layer1 = tf.sigmoid(tf.matmul(x, w)+b)
+soft_max = tf.nn.softmax(layer1)
+\end{lstlisting}
+
+\item Since we have bernoulli distribution instead of the normal distribution used in part 1 for $\pi$, our $\pi$ is the output of softmax. Our $pi\_sample$ gets the action of higher corresponding probability from softmax. Out $log\_pi$ is the logarithm of softmax. And we use $act\_pi$ instead of $log\_pi$ to calculate the cost. We used the line of code which is provided to us to compute $act\_pi$. The code converts $y$ which is a list of actions of shape $n \times 1$ to the one hot encoding matrix which has shape $n \times 2 \times 1$, where $n$ is the number of states. The code also add one more dimension to $log\_pi$ which converts the shape of $log\_pi$ from $n \times 2$ to $n \times 1 \times 2$. The result of multiplication of the two converted matrices is a $n \times 1 \times 1$ matrix which is a list of log probabilities of corresponding actions.\\
+Then we used the $act\_pi$ to compute the cost.
+
+\begin{lstlisting}
+pi_sample = tf.argmax(soft_max, axis=1)
+log_pi = tf.log(soft_max)
+act_pi = tf.matmul(tf.expand_dims(log_pi, 1), tf.one_hot(y, 2, axis=1))
+
+Returns = tf.placeholder(tf.float32, name='Returns')
+optimizer = tf.train.GradientDescentOptimizer(alpha)
+train_op = optimizer.minimize(-1.0 * Returns * act_pi)
+\end{lstlisting}
+
+The rest of the code are mostly what we got from part 1.
+
+\end{enumerate}
 
 \clearpage
 
