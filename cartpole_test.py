@@ -25,8 +25,8 @@ b = tf.get_variable("b", shape=[output_units])
 x = tf.placeholder(tf.float32, shape=(None, input_shape), name='x')
 y = tf.placeholder(tf.int32, shape=(None, 1), name='y')
 
-layer1 = tf.sigmoid(tf.matmul(x, w)+b)
-soft_max = tf.nn.softmax(layer1)
+layer = tf.sigmoid(tf.matmul(x, w)+b)
+soft_max = tf.nn.softmax(layer)
 
 pi_sample = tf.argmax(soft_max, axis=1)
 log_pi = tf.log(soft_max)
