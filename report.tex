@@ -233,8 +233,28 @@ The rest of the code are mostly what we got from part 1.
 
 
 \section*{Part 3}
+Train CartPole using your implementation of REINFORCE. (Use a very small learning rate, and a discount rate $\gamma=0.99$.) You do not have to train it until it works perfectly (i.e., the episode doesn’t stop until time-step 200), but wait at least until the average number of time-steps per episode is 50. (It’s better if you wait longer, although you are not required to do that.)
 
+\subsection*{Part 3(a)}
 \paragraph{Question}
+In your report, include a printout that shows how the weights of the policy function changed and how the average number of time-steps per eipsode change as you trained.
+
+\paragraph{Answer}
+The change of average number of time-steps per episode over the last 25 episodes are as follows:
+\begin{figure*}[h]
+	\centering
+	\includegraphics[scale=1]{part3a.png}
+	\caption*{Changes of Time-steps per Episode}
+\end{figure*}
+
+The change of weights of the policy function are as follows:
+\begingroup
+\obeylines
+\input{weight_change.txt}%
+\endgroup%
+\subsection*{Part 3(b)}
+\paragraph{Question}
+Explain why the final weights you obtained make sense. This requires understanding the what each input dimension means
 
 \paragraph{Answer}
 

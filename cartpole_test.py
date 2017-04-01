@@ -3,7 +3,9 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.layers import *
 
+import os
 import sys
+import matplotlib.pyplot as plt
 
 env = gym.make('CartPole-v0')
 
@@ -43,7 +45,17 @@ MEMORY=25
 MAX_STEPS = env.spec.tags.get('wrapper_config.TimeLimit.max_episode_steps')
 
 track_returns = []
-for ep in range(5000):
+
+recorded_eps = []
+avg_steps = []
+
+if not os.path.exists("weight_change.txt"):
+    f = open("weight_change.txt", "w")
+    can_write = True
+else:
+    can_write = False
+
+for ep in range(3001):
     obs = env.reset()
 
     G = 0
@@ -76,10 +88,35 @@ for ep in range(5000):
                             y:np.reshape(np.array(ep_actions), (len(ep_actions), 1)),
                             Returns:returns })
     
+    
+    track_returns.append(G)
+    track_returns = track_returns[-MEMORY:]
+    mean_return = np.mean(track_returns)
     if ep % 100 == 0:
-        track_returns.append(G)
-        track_returns = track_returns[-MEMORY:]
-        mean_return = np.mean(track_returns)
         print("Episode {} finished after {} steps with return {}".format(ep, t, G))
         print("Mean return over the last {} episodes is {}".format(MEMORY,
                                                                 mean_return))
+                                                                
+        if can_write:
+            f.write("Weight at episode "+str(ep)+":\n")
+            f.write(np.array_str(sess.run(tf.transpose(w))))
+            f.write("\n\n")
+            recorded_eps.append(ep)
+            avg_steps.append(mean_return)
+
+if can_write:
+    f.close()
+
+if not os.path.exists("avg_steps.txt"):
+    np.savetxt("avg_steps.txt", np.array(avg_steps))
+
+if not os.path.exists("recorded_eps.txt"):
+    np.savetxt("recorded_eps.txt", np.array(recorded_eps))
+    
+if not os.path.exists("part3a.png"):
+    y_axis = np.loadtxt("avg_steps.txt")
+    x_axis = np.loadtxt("recorded_eps.txt")
+    plt.plot(x_axis, y_axis)
+    plt.xlabel('Episodes')
+    plt.ylabel('Average number of time-steps')
+    plt.savefig("part3a.png")
