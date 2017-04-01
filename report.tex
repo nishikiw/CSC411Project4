@@ -258,6 +258,24 @@ Explain why the final weights you obtained make sense. This requires understandi
 
 \paragraph{Answer}
 
+\begin{figure*}[h]
+	\centering
+	\includegraphics[scale=2.0]{cartpole_image.png}
+	\caption*{Diagram representation of the cartpole system}
+\end{figure*}
+
+In order to understand why does the final weight make sense, we need to first understand what each input dimension means. The size of the input dimension is 4, which are [position of cart, velocity of cart, angle of pole, rotation rate (angular velocity) of pole]. In the source code, they are denoted by $[x, x\_dot, theta, theta\_dot]$ (dot means first derivative). Thus at each iteration when we observe the environment, we will observe the 4 components of the cart. The threshold for $x$ is 2.4 units away from the center, and the threshold for $theta$ is 15 degrees from the vertical.
+
+When looking at the final weights, there are some observations that we made:
+\begin {itemize}
+	\item For velocity, angle, and angular velocity, the system tries to balance it using the weights. The weights for those components are approximately the same in magnitude but with different signs.
+	\item For angular velocity, if it is is negative (falling to the left), $theta\_dot \times w_{theta\_dot_L}$ will be positive, while $theta\_dot \times w_{theta\_dot_R}$ will be negative. Thus it will want the cart to be pushed towards the left side (0) to reduce the angular velocity. On the other hand, if angular velocity is positive (falling to the right), it will want the cart to be pushed towards the right (1) to cancel out the momentum.
+	\item Similarly for velocity, since we also do not want to exceed the 2.4 unit threshold of $x$, when the position of the cart is negative (to the left of center), $x\_dot \times w_{x\_dot_L}$ will be negative while $x\_dot \times w_{x\_dot_R}$ will be positive. Thus based on velocity, the cart will want to be pushed towards the right (1), vice versa.
+	\item Same explanation goes for $theta$. The system would want to use the weight to keep the $theta$ to be approximately 0 (vertically upright).
+	\item The trained system prioritize balancing velocity, angle, and angular velocity over the distance of cart. This can be observed because the system uses the weight to balance out the velocity, angle, and angular velocity (as described in point 1). However, the sign of $w_{x_L}$ and $w_{x_R}$ are the same, and unlike the other components, the magnitude is relatively not close. The potential reason for this can be because the system is not done training yet. We are only reaching an average step of 50 as supposed to reaching average reward of 195 over 100 consecutive trials.
+	\item One minor observation is that the magnitude of $w_{x\_dot}$ and $w_{theta\_dot}$ are both bigger than magnitude of $w_x$ and $w_{theta}$ respectively. This make sense because when the system is calculating the new state of the cart given an action, the velocity's are multiplied with $\tau=0.02$, which is the time interval. Thus even though the magnitude of the weight is big, the resulting component would be smaller.
+\end {itemize}
+
 \clearpage
 
 
